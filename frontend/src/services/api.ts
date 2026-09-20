@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ResumeData, FullAnalysisResult, GitHubRepoAnalysis, RewriteResponse } from '../types/resume';
+import { ResumeData, SimpleAnalysisResult, ChatEditResponse, FieldAssistResponse } from '../types/resume';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
@@ -27,19 +27,15 @@ export const apiService = {
     return response.data;
   },
 
-  // Deep ATS analysis and scoring
-  scoreResume: async (
+  // Simple structured analysis
+  scoreResumeSimple: async (
     resumeData: ResumeData,
-    targetRole: string = 'Software Engineer',
-    companyName: string = 'Stripe',
     jobDescription: string = ''
-  ): Promise<FullAnalysisResult> => {
+  ): Promise<SimpleAnalysisResult> => {
     const response = await axios.post(
-      `${API_BASE_URL}/analyze/score`,
+      `${API_BASE_URL}/analyze/simple`,
       {
         resume_data: resumeData,
-        target_role: targetRole,
-        company_name: companyName,
         job_description: jobDescription,
       },
       { headers: getHeaders() }
@@ -47,71 +43,34 @@ export const apiService = {
     return response.data;
   },
 
-  // Job Description skill matrix comparison
-  compareJD: async (
+  // Plain language chat edit with before/after diffs
+  plainLanguageChatEdit: async (
     resumeData: ResumeData,
-    jobDescription: string,
-    targetRole: string = 'Software Engineer',
-    companyName: string = 'Stripe'
-  ) => {
+    instruction: string
+  ): Promise<ChatEditResponse> => {
     const response = await axios.post(
-      `${API_BASE_URL}/jd/compare`,
+      `${API_BASE_URL}/edit/chat`,
       {
         resume_data: resumeData,
-        job_description: jobDescription,
+        instruction: instruction,
+      },
+      { headers: getHeaders() }
+    );
+    return response.data;
+  },
+
+  // Per-field AI writing assist
+  assistField: async (
+    fieldName: string,
+    roughNotes: string,
+    targetRole: string = 'Software Engineer'
+  ): Promise<FieldAssistResponse> => {
+    const response = await axios.post(
+      `${API_BASE_URL}/assist/field`,
+      {
+        field_name: fieldName,
+        rough_notes: roughNotes,
         target_role: targetRole,
-        company_name: companyName,
-      },
-      { headers: getHeaders() }
-    );
-    return response.data;
-  },
-
-  // GitHub User Repositories & Complexity Analysis
-  fetchGitHubRepos: async (username: string) => {
-    const response = await axios.get(`${API_BASE_URL}/github/user/${username}`);
-    return response.data;
-  },
-
-  analyzeGitHubRepos: async (username: string, selectedRepos: string[]): Promise<GitHubRepoAnalysis[]> => {
-    const response = await axios.post(
-      `${API_BASE_URL}/github/analyze`,
-      {
-        username,
-        selected_repos: selectedRepos,
-      },
-      { headers: getHeaders() }
-    );
-    return response.data;
-  },
-
-  // Inline AI Rewrite Assistant
-  rewriteText: async (
-    selectedText: string,
-    action: string,
-    targetRole: string = 'Software Engineer',
-    context: string = ''
-  ): Promise<RewriteResponse> => {
-    const response = await axios.post(
-      `${API_BASE_URL}/rewrite`,
-      {
-        selected_text: selectedText,
-        action: action,
-        target_role: targetRole,
-        context: context,
-      },
-      { headers: getHeaders() }
-    );
-    return response.data;
-  },
-
-  // Prompt Resume Generator
-  generateFromPrompt: async (prompt: string, userProfile?: any): Promise<ResumeData> => {
-    const response = await axios.post(
-      `${API_BASE_URL}/generate/prompt`,
-      {
-        prompt,
-        user_profile: userProfile,
       },
       { headers: getHeaders() }
     );

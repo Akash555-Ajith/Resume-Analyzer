@@ -1,10 +1,15 @@
-from fastapi import APIRouter, UploadFile, File, Form, Header, HTTPException
+from fastapi import APIRouter, UploadFile, File, Header, HTTPException
 from typing import Optional
+from pydantic import BaseModel
 from app.services.parser_service import parser_service
 from app.services.gemini_service import gemini_service
-from app.schemas.resume import ResumeData, FullAnalysisResult, AnalyzeResumeRequest
+from app.schemas.resume import ResumeData, SimpleAnalysisResult
 
 router = APIRouter(prefix="/api/analyze", tags=["Analyze"])
+
+class SimpleScoreRequest(BaseModel):
+    resume_data: ResumeData
+    job_description: Optional[str] = ""
 
 @router.post("/upload", response_model=ResumeData)
 async def upload_and_parse_resume(
@@ -19,17 +24,14 @@ async def upload_and_parse_resume(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse resume file: {str(e)}")
 
-@router.post("/score", response_model=FullAnalysisResult)
-async def score_resume(
-    request: AnalyzeResumeRequest,
+@router.post("/simple", response_model=SimpleAnalysisResult)
+async def score_resume_simple(
+    request: SimpleScoreRequest,
     x_gemini_api_key: Optional[str] = Header(None)
 ):
-    api_key = request.api_key or x_gemini_api_key
-    result = gemini_service.analyze_resume_deep(
+    result = gemini_service.analyze_resume_simple(
         resume=request.resume_data,
-        target_role=request.target_role or "Software Engineer",
-        company_name=request.company_name or "Stripe",
         job_description=request.job_description or "",
-        user_key=api_key
+        user_key=x_gemini_api_key
     )
     return result

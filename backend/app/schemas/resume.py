@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 class ContactInfo(BaseModel):
@@ -41,23 +41,10 @@ class SkillCategory(BaseModel):
     category: str
     skills: List[str]
 
-class UserProfile(BaseModel):
-    contact: ContactInfo = Field(default_factory=ContactInfo)
-    current_position: Optional[str] = ""
-    target_position: Optional[str] = ""
-    industry: Optional[str] = ""
-    experience_level: Optional[str] = "Mid-Level" # Student, Entry, Mid-Level, Senior, Lead, Executive
-    years_of_experience: Optional[float] = 0
-    is_student: bool = False
-    education: List[EducationEntry] = Field(default_factory=list)
-    certifications: List[str] = Field(default_factory=list)
-    publications: List[str] = Field(default_factory=list)
-    achievements: List[str] = Field(default_factory=list)
-
 class ResumeData(BaseModel):
     id: Optional[str] = "main-resume"
     title: Optional[str] = "Master Resume"
-    template_id: str = "modern_professional"
+    template_id: str = "classic"
     contact: ContactInfo = Field(default_factory=ContactInfo)
     summary: Optional[str] = ""
     education: List[EducationEntry] = Field(default_factory=list)
@@ -70,95 +57,49 @@ class ResumeData(BaseModel):
     leadership: List[str] = Field(default_factory=list)
     extracurriculars: List[str] = Field(default_factory=list)
 
-class ATSFlaw(BaseModel):
+class SectionFeedback(BaseModel):
+    summary: str = ""
+    experience: str = ""
+    education: str = ""
+    skills: str = ""
+    projects: str = ""
+
+class SimpleAnalysisResult(BaseModel):
+    overall_score: int = 88
+    strengths: List[str] = Field(default_factory=list)
+    weaknesses: List[str] = Field(default_factory=list)
+    section_feedback: SectionFeedback = Field(default_factory=SectionFeedback)
+    missing_sections: List[str] = Field(default_factory=list)
+    missing_keywords: List[str] = Field(default_factory=list)
+    formatting_issues: List[str] = Field(default_factory=list)
+    grammar_issues: List[str] = Field(default_factory=list)
+    jd_match_score: Optional[int] = None
+    jd_keyword_gaps: List[str] = Field(default_factory=list)
+
+class DiffItem(BaseModel):
     id: str
-    problem: str
-    why: str
-    recommendation: str
-    severity: str = "high" # high, medium, low
-    category: str = "ATS Formatting" # Formatting, Keywords, Content, Schema
-
-class VectorSubScore(BaseModel):
-    score: int
-    name: str
-    explanation: str
-
-class RoleAnalysis(BaseModel):
-    target_role: str
-    strong_matches: List[str] = Field(default_factory=list)
-    missing_skills: List[str] = Field(default_factory=list)
-    weak_evidence: List[str] = Field(default_factory=list)
-    irrelevant_content: List[str] = Field(default_factory=list)
-    recommended_emphasis: List[str] = Field(default_factory=list)
-
-class JDRequirementItem(BaseModel):
-    requirement: str
-    resume_evidence: str
-    match_level: str # Strong, Moderate, Missing, Irrelevant
-    recommendation: str
-
-class CompanyAnalysis(BaseModel):
-    company: str
-    target_role: str
-    emphasis_advice: str
-    key_vectors: List[str] = Field(default_factory=list)
-    hiring_bar_benchmark: Optional[str] = ""
-
-class FullAnalysisResult(BaseModel):
-    overall_score: int = 94
-    ats_score: int = 96
-    content_quality_score: int = 92
-    role_relevance_score: int = 94
-    keyword_relevance_score: int = 95
-    experience_strength_score: int = 91
-    project_strength_score: int = 93
-    skills_relevance_score: int = 96
-    formatting_score: int = 98
-    readability_score: int = 95
-    achievement_impact_score: int = 92
-    
-    # Specific verification vectors matching UI screenshot
-    parse_fidelity: float = 99.2
-    table_faults: int = 0
-    quant_impact_ratio: str = "14 / 14"
-    recruiter_pass_time: str = "6.2s"
-    google_xyz_adherence: int = 98
-    ats_parseability_schema: int = 99
-    
-    ats_flaws: List[ATSFlaw] = Field(default_factory=list)
-    sub_scores: List[VectorSubScore] = Field(default_factory=list)
-    role_analysis: Optional[RoleAnalysis] = None
-    company_analysis: Optional[CompanyAnalysis] = None
-    jd_matrix: List[JDRequirementItem] = Field(default_factory=list)
-    high_yield_recommendations: List[str] = Field(default_factory=list)
-
-class GitHubRepoAnalysis(BaseModel):
-    repo_name: str
-    description: Optional[str] = ""
-    technologies: List[str] = Field(default_factory=list)
-    technical_complexity: List[str] = Field(default_factory=list)
-    evidence: str
-    resume_bullets: List[str] = Field(default_factory=list)
-
-class RewriteRequest(BaseModel):
-    selected_text: str
-    action: str # improve, concise, technical, professional, quantify, fix_grammar, ats_rewrite
-    target_role: Optional[str] = "Software Engineer"
-    context: Optional[str] = ""
-
-class RewriteResponse(BaseModel):
+    section: str
     original_text: str
-    rewritten_text: str
+    proposed_text: str
     explanation: str
 
-class PromptGenerationRequest(BaseModel):
-    prompt: str
-    user_profile: Optional[UserProfile] = None
+class ChatEditRequest(BaseModel):
+    resume_data: ResumeData
+    instruction: str
     api_key: Optional[str] = ""
 
-class AnalyzeResumeRequest(BaseModel):
-    resume_data: ResumeData
+class ChatEditResponse(BaseModel):
+    updated_resume: ResumeData
+    diffs: List[DiffItem] = Field(default_factory=list)
+    summary_explanation: str
+
+class FieldAssistRequest(BaseModel):
+    field_name: str
+    rough_notes: str
     target_role: Optional[str] = "Software Engineer"
-    company_name: Optional[str] = "Stripe"
-    job_description: Optional[str] = ""
     api_key: Optional[str] = ""
+
+class FieldAssistResponse(BaseModel):
+    field_name: str
+    suggested_text: str
+    explanation: str

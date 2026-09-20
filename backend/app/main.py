@@ -1,15 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import analyze, jd_match, github, rewrite, generate
+from app.routers import analyze, jd_match, github, rewrite, generate, edit, assist
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="ResumeIQ INTELLIGENCE v4.2 Backend API - Powered by Gemini Pro"
+    description="AI Resume Analyzer Backend API - Powered by Gemini Pro"
 )
 
-# CORS Middleware setup for Vite React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,6 +22,8 @@ app.include_router(jd_match.router)
 app.include_router(github.router)
 app.include_router(rewrite.router)
 app.include_router(generate.router)
+app.include_router(edit.router)
+app.include_router(assist.router)
 
 @app.get("/")
 @app.get("/api/health")
