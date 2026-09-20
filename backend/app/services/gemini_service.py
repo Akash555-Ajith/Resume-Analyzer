@@ -18,7 +18,8 @@ class GeminiService:
 
     def _get_client(self, user_key: Optional[str] = None) -> Optional[genai.Client]:
         key = user_key or self.api_key
-        if key and len(key.strip()) > 5:
+        # Check if key exists and is NOT a dummy placeholder
+        if key and len(key.strip()) > 5 and not key.strip().startswith("AIzaSyYourActual"):
             try:
                 return genai.Client(api_key=key.strip())
             except Exception as e:
@@ -252,14 +253,14 @@ class GeminiService:
         user_key: Optional[str] = None
     ) -> ChatAssistantResponse:
         client = self._get_client(user_key)
-        
         last_user_msg = messages[-1].content if messages else "Hello"
+        
         if not client:
             return self._mock_chat_assistant(last_user_msg)
 
         resume_summary = ""
         if current_resume:
-            resume_summary = f"Candidate Name: {current_resume.contact.name}, Target Role: {current_resume.title}, Skills: {json.dumps(current_resume.skills)}"
+            resume_summary = f"Candidate Name: {current_resume.contact.name}, Target Role: {current_resume.title}, Skills: {json.dumps([s.skills for s in current_resume.skills])}"
 
         formatted_history = "\n".join([f"{m.role.upper()}: {m.content}" for m in messages[-6:]])
 
@@ -271,7 +272,7 @@ class GeminiService:
         Recent Chat Conversation:
         {formatted_history}
 
-        Provide a clear, encouraging, highly actionable response to the user's latest query. Give specific examples and concrete resume advice.
+        Provide a clear, encouraging, highly actionable response to the user's latest query: "{last_user_msg}". Give specific examples and concrete resume advice.
         """
         try:
             response = client.models.generate_content(
@@ -416,14 +417,16 @@ class GeminiService:
 
     def _mock_chat_assistant(self, last_user_msg: str) -> ChatAssistantResponse:
         msg_lower = last_user_msg.lower()
-        if "summary" in msg_lower:
+        if "hello" in msg_lower or "hi" in msg_lower or "hey" in msg_lower:
+            reply = "Hello! 👋 I'm your AI Career Assistant. How can I help optimize your resume, prepare for interviews, or select the best template today?"
+        elif "summary" in msg_lower:
             reply = "To write a powerful summary, use the formula: [Your Title] + [Years of Experience] + [Core Technical Stack] + [Key Measurable Impact]. For example: 'Senior Full Stack Engineer with 6+ years designing microservices handling 50k RPS in Python & React.'"
         elif "fresher" in msg_lower or "student" in msg_lower:
             reply = "For students or freshers, prioritize your **Education & Coursework** at the top, followed by **Key Technical Projects**, hackathons, and internship experience. Use the 'Student / Graduate' or 'Minimalist Clean' template!"
         elif "verb" in msg_lower or "bullet" in msg_lower:
             reply = "Use strong action verbs to start every bullet point: *Architected, Engineered, Spearheaded, Optimized, Benchmarked, Automated*. Always aim for the **Action + Work + Context + Result** structure."
         else:
-            reply = f"Great question about '{last_user_msg}'! To optimize your resume for recruiters and ATS scanners, focus on tailoring your skills to the specific job requisition, quantifying achievements with concrete metrics, and keeping formatting clean and single-column."
+            reply = f"Great question regarding '{last_user_msg}'! To optimize your resume for recruiters and ATS scanners, focus on tailoring your skills to the specific job requisition, quantifying achievements with concrete metrics, and keeping formatting clean and single-column."
         
         return ChatAssistantResponse(reply=reply)
 
