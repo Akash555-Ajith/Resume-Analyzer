@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import analyze, jd_match, github, rewrite, generate, edit, assist
+from app.routers import analyze, edit, assist, generate, github, chatbot
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -18,12 +18,11 @@ app.add_middleware(
 )
 
 app.include_router(analyze.router)
-app.include_router(jd_match.router)
-app.include_router(github.router)
-app.include_router(rewrite.router)
-app.include_router(generate.router)
 app.include_router(edit.router)
 app.include_router(assist.router)
+app.include_router(generate.router)
+app.include_router(github.router)
+app.include_router(chatbot.router)
 
 @app.get("/")
 @app.get("/api/health")

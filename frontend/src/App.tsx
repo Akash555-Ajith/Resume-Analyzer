@@ -4,13 +4,14 @@ import { AnalyserPage } from './components/analyzer/AnalyserPage';
 import { GeneratorPage } from './components/generator/GeneratorPage';
 import { TemplatesPage } from './components/templates/TemplatesPage';
 import { ApiKeyModal } from './components/common/ApiKeyModal';
+import { AIChatbotWidget } from './components/common/AIChatbotWidget';
 import { ResumeData, SimpleAnalysisResult } from './types/resume';
 
 // Default Master Sample Resume
 const initialResume: ResumeData = {
   id: 'master-1',
   title: 'Master Professional Resume',
-  template_id: 'modern_professional',
+  template_id: 'modern',
   contact: {
     name: 'Erik Rostad',
     email: 'erik.rostad@stripe.com',
@@ -129,7 +130,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FC] text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F8F9FC] text-slate-900 flex flex-col font-sans relative">
       {/* Top Navbar with 3 Page Links */}
       <Navbar
         activePage={activePage}
@@ -167,6 +168,9 @@ export const App: React.FC = () => {
           />
         )}
       </main>
+
+      {/* Global AI Chatbot Widget */}
+      <AIChatbotWidget currentResume={resume} />
 
       {/* Gemini Key Config Modal */}
       <ApiKeyModal

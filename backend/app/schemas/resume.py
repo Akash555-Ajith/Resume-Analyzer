@@ -103,3 +103,28 @@ class FieldAssistResponse(BaseModel):
     field_name: str
     suggested_text: str
     explanation: str
+
+class PromptGenerationRequest(BaseModel):
+    prompt: str
+    user_profile: Optional[Dict[str, Any]] = None
+    api_key: Optional[str] = ""
+
+class GitHubRepoAnalysis(BaseModel):
+    repo_name: str
+    description: Optional[str] = ""
+    technologies: List[str] = Field(default_factory=list)
+    technical_complexity: List[str] = Field(default_factory=list)
+    evidence: str
+    resume_bullets: List[str] = Field(default_factory=list)
+
+class ChatMessage(BaseModel):
+    role: str # user or assistant
+    content: str
+
+class ChatAssistantRequest(BaseModel):
+    messages: List[ChatMessage]
+    current_resume: Optional[ResumeData] = None
+    api_key: Optional[str] = ""
+
+class ChatAssistantResponse(BaseModel):
+    reply: str

@@ -76,4 +76,20 @@ export const apiService = {
     );
     return response.data;
   },
+
+  // AI Chatbot Assistant
+  sendChatAssistantMessage: async (
+    messages: { role: string; content: string }[],
+    currentResume?: ResumeData
+  ): Promise<{ reply: string }> => {
+    const response = await axios.post(
+      `${API_BASE_URL}/chat/assistant`,
+      {
+        messages,
+        current_resume: currentResume,
+      },
+      { headers: getHeaders() }
+    );
+    return response.data;
+  },
 };

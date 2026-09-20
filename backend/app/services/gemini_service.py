@@ -9,7 +9,7 @@ from app.config import settings
 from app.schemas.resume import (
     ResumeData, ContactInfo, EducationEntry, WorkExperienceEntry,
     ProjectEntry, SkillCategory, SimpleAnalysisResult, SectionFeedback,
-    ChatEditResponse, DiffItem, FieldAssistResponse
+    ChatEditResponse, DiffItem, FieldAssistResponse, ChatMessage, ChatAssistantResponse
 )
 
 class GeminiService:
@@ -245,6 +245,44 @@ class GeminiService:
             print(f"[GeminiService] field_assist error: {e}")
             return self._mock_field_assist(field_name, rough_notes)
 
+    def chat_career_assistant(
+        self,
+        messages: List[ChatMessage],
+        current_resume: Optional[ResumeData] = None,
+        user_key: Optional[str] = None
+    ) -> ChatAssistantResponse:
+        client = self._get_client(user_key)
+        
+        last_user_msg = messages[-1].content if messages else "Hello"
+        if not client:
+            return self._mock_chat_assistant(last_user_msg)
+
+        resume_summary = ""
+        if current_resume:
+            resume_summary = f"Candidate Name: {current_resume.contact.name}, Target Role: {current_resume.title}, Skills: {json.dumps(current_resume.skills)}"
+
+        formatted_history = "\n".join([f"{m.role.upper()}: {m.content}" for m in messages[-6:]])
+
+        prompt = f"""
+        You are an AI Career Assistant, Senior Technical Recruiter, and Resume Strategist.
+        Context on user's current resume (if any):
+        {resume_summary}
+
+        Recent Chat Conversation:
+        {formatted_history}
+
+        Provide a clear, encouraging, highly actionable response to the user's latest query. Give specific examples and concrete resume advice.
+        """
+        try:
+            response = client.models.generate_content(
+                model=settings.DEFAULT_MODEL,
+                contents=prompt
+            )
+            return ChatAssistantResponse(reply=response.text)
+        except Exception as e:
+            print(f"[GeminiService] chat_career_assistant error: {e}")
+            return self._mock_chat_assistant(last_user_msg)
+
     # --- MOCK FALLBACK PROVIDERS ---
     def _mock_parse_resume(self, text: str) -> ResumeData:
         return ResumeData(
@@ -375,5 +413,18 @@ class GeminiService:
             suggested_text=f"Engineered scalable solution from notes: {rough_notes}. Achieved 35% performance improvement.",
             explanation="Transformed rough notes into action-oriented resume phrasing."
         )
+
+    def _mock_chat_assistant(self, last_user_msg: str) -> ChatAssistantResponse:
+        msg_lower = last_user_msg.lower()
+        if "summary" in msg_lower:
+            reply = "To write a powerful summary, use the formula: [Your Title] + [Years of Experience] + [Core Technical Stack] + [Key Measurable Impact]. For example: 'Senior Full Stack Engineer with 6+ years designing microservices handling 50k RPS in Python & React.'"
+        elif "fresher" in msg_lower or "student" in msg_lower:
+            reply = "For students or freshers, prioritize your **Education & Coursework** at the top, followed by **Key Technical Projects**, hackathons, and internship experience. Use the 'Student / Graduate' or 'Minimalist Clean' template!"
+        elif "verb" in msg_lower or "bullet" in msg_lower:
+            reply = "Use strong action verbs to start every bullet point: *Architected, Engineered, Spearheaded, Optimized, Benchmarked, Automated*. Always aim for the **Action + Work + Context + Result** structure."
+        else:
+            reply = f"Great question about '{last_user_msg}'! To optimize your resume for recruiters and ATS scanners, focus on tailoring your skills to the specific job requisition, quantifying achievements with concrete metrics, and keeping formatting clean and single-column."
+        
+        return ChatAssistantResponse(reply=reply)
 
 gemini_service = GeminiService()
