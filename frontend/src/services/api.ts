@@ -1,95 +1,185 @@
 import axios from 'axios';
-import { ResumeData, SimpleAnalysisResult, ChatEditResponse, FieldAssistResponse } from '../types/resume';
+import {
+  ResumeData, ResumeAnalysisResponse, JobMatchResult,
+  GitHubRepoAnalysis, ResumeVersion, ValidationResult,
+  InlineAssistResponse, AICommandResponse
+} from '../types/resume';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE = 'http://localhost:8000/api';
 
-const getHeaders = () => {
-  const apiKey = localStorage.getItem('gemini_api_key') || '';
-  return {
-    'Content-Type': 'application/json',
-    'x-gemini-api-key': apiKey,
-  };
-};
+const client = axios.create({
+  baseURL: API_BASE,
+  timeout: 30000,
+});
 
-export const apiService = {
-  // Upload and parse PDF/DOCX/TXT resume
-  uploadResume: async (file: File): Promise<ResumeData> => {
+export const api = {
+  // Health & Status
+  async getHealth() {
+    try {
+      const res = await client.get('/health');
+      return res.data;
+    } catch {
+      return { status: 'offline', gemini_configured: false, model: 'offline-mode' };
+    }
+  },
+
+  // Analyze
+  async uploadAndAnalyze(file: File, targetRole: string, targetCompany: string, jobDescription: string) {
     const formData = new FormData();
     formData.append('file', file);
-    const apiKey = localStorage.getItem('gemini_api_key') || '';
+    formData.append('target_role', targetRole);
+    formData.append('target_company', targetCompany);
+    formData.append('job_description', jobDescription);
 
-    const response = await axios.post(`${API_BASE_URL}/analyze/upload`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'x-gemini-api-key': apiKey,
-      },
+    const res = await client.post<{ resume: ResumeData; analysis: ResumeAnalysisResponse }>('/analyze/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     });
-    return response.data;
+    return res.data;
   },
 
-  // Simple structured analysis
-  scoreResumeSimple: async (
-    resumeData: ResumeData,
-    jobDescription: string = ''
-  ): Promise<SimpleAnalysisResult> => {
-    const response = await axios.post(
-      `${API_BASE_URL}/analyze/simple`,
-      {
-        resume_data: resumeData,
-        job_description: jobDescription,
-      },
-      { headers: getHeaders() }
-    );
-    return response.data;
+  async evaluateResume(resumeData: ResumeData, targetRole: string, targetCompany: string, jobDescription: string) {
+    const res = await client.post<ResumeAnalysisResponse>('/analyze/evaluate', {
+      resume_data: resumeData,
+      target_role: targetRole,
+      target_company: targetCompany,
+      job_description: jobDescription
+    });
+    return res.data;
   },
 
-  // Plain language chat edit with before/after diffs
-  plainLanguageChatEdit: async (
-    resumeData: ResumeData,
-    instruction: string
-  ): Promise<ChatEditResponse> => {
-    const response = await axios.post(
-      `${API_BASE_URL}/edit/chat`,
-      {
-        resume_data: resumeData,
-        instruction: instruction,
-      },
-      { headers: getHeaders() }
-    );
-    return response.data;
+  async validateResume(resumeData: ResumeData) {
+    const res = await client.post<ValidationResult>('/analyze/validate', resumeData);
+    return res.data;
   },
 
-  // Per-field AI writing assist
-  assistField: async (
-    fieldName: string,
-    roughNotes: string,
-    targetRole: string = 'Software Engineer'
-  ): Promise<FieldAssistResponse> => {
-    const response = await axios.post(
-      `${API_BASE_URL}/assist/field`,
-      {
-        field_name: fieldName,
-        rough_notes: roughNotes,
-        target_role: targetRole,
-      },
-      { headers: getHeaders() }
-    );
-    return response.data;
+  // Generate
+  async generateFromPrompt(prompt: string, careerStage: string, targetRole: string) {
+    const res = await client.post<ResumeData>('/generate/prompt', {
+      prompt,
+      career_stage: careerStage,
+      target_role: targetRole
+    });
+    return res.data;
   },
 
-  // AI Chatbot Assistant
-  sendChatAssistantMessage: async (
-    messages: { role: string; content: string }[],
-    currentResume?: ResumeData
-  ): Promise<{ reply: string }> => {
-    const response = await axios.post(
-      `${API_BASE_URL}/chat/assistant`,
-      {
-        messages,
-        current_resume: currentResume,
-      },
-      { headers: getHeaders() }
-    );
-    return response.data;
+  async generateGuided(resumeData: ResumeData) {
+    const res = await client.post<ResumeData>('/generate/guided', resumeData);
+    return res.data;
   },
+
+  // GitHub
+  async fetchGithubRepos(username: string) {
+    const res = await client.get<{ username: string; repositories: any[] }>(`/github/user/${username}`);
+    return res.data.repositories;
+  },
+
+  async analyzeGithubRepos(username: string, selectedRepos: string[]) {
+    const res = await client.post<GitHubRepoAnalysis[]>('/github/analyze', {
+      username,
+      selected_repos: selectedRepos
+    });
+    return res.data;
+  },
+
+  async generateFromGithub(username: string, selectedRepos: string[], careerStage: string, targetRole: string) {
+    const res = await client.post<ResumeData>('/github/generate-resume', {
+      username,
+      selected_repos: selectedRepos,
+      career_stage: careerStage,
+      target_role: targetRole
+    });
+    return res.data;
+  },
+
+  // Job Match
+  async matchJob(resumeData: ResumeData, jobDescription: string, targetRole: string, tailorResume: boolean = false) {
+    const res = await client.post<{ match_result: JobMatchResult; tailored_resume?: ResumeData }>('/jobs/match', {
+      resume_data: resumeData,
+      job_description: jobDescription,
+      target_role: targetRole,
+      tailor_resume: tailorResume
+    });
+    return res.data;
+  },
+
+  // Editor AI
+  async executeCommand(resumeData: ResumeData, command: string) {
+    const res = await client.post<AICommandResponse>('/edit/command', {
+      resume_data: resumeData,
+      command
+    });
+    return res.data;
+  },
+
+  async inlineAssist(action: string, selectedText: string, context: string = '', targetRole: string = '', jobDescription: string = '') {
+    const res = await client.post<InlineAssistResponse>('/edit/assist', {
+      action,
+      selected_text: selectedText,
+      context,
+      target_role: targetRole,
+      job_description: jobDescription
+    });
+    return res.data;
+  },
+
+  // Resumes Storage CRUD
+  async listResumes() {
+    const res = await client.get<ResumeData[]>('/resumes');
+    return res.data;
+  },
+
+  async getResume(id: string) {
+    const res = await client.get<ResumeData>(`/resumes/${id}`);
+    return res.data;
+  },
+
+  async saveResume(resume: ResumeData) {
+    const res = await client.post<ResumeData>('/resumes', resume);
+    return res.data;
+  },
+
+  async deleteResume(id: string) {
+    const res = await client.delete(`/resumes/${id}`);
+    return res.data;
+  },
+
+  async duplicateResume(id: string) {
+    const res = await client.post<ResumeData>(`/resumes/${id}/duplicate`);
+    return res.data;
+  },
+
+  // Versioning
+  async getVersions(resumeId: string) {
+    const res = await client.get<ResumeVersion[]>(`/resumes/${resumeId}/versions`);
+    return res.data;
+  },
+
+  async createVersion(resumeId: string, versionName: string, changeSummary: string, resumeData: ResumeData) {
+    const res = await client.post<ResumeVersion>(`/resumes/${resumeId}/versions`, {
+      version_name: versionName,
+      change_summary: changeSummary,
+      resume_data: resumeData
+    });
+    return res.data;
+  },
+
+  // Master Profile
+  async getProfile() {
+    const res = await client.get<ResumeData>('/resumes/user/profile');
+    return res.data;
+  },
+
+  async saveProfile(profile: ResumeData) {
+    const res = await client.post<ResumeData>('/resumes/user/profile', profile);
+    return res.data;
+  },
+
+  // Export URLs
+  getDocxUrl(id: string) {
+    return `${API_BASE}/resumes/${id}/export/docx`;
+  },
+
+  getTxtUrl(id: string) {
+    return `${API_BASE}/resumes/${id}/export/txt`;
+  }
 };

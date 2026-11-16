@@ -63,7 +63,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Start FastAPI backend server
-python -m uvicorn app.main:app --port 8000 --reload
+python -m uvicorn app.main:app --port 8000 --reload --reload-dir app
 ```
 
 Backend server runs at: `http://localhost:8000` (Swagger docs: `http://localhost:8000/docs`)

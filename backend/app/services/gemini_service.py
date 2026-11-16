@@ -1,98 +1,91 @@
 import os
 import json
 import uuid
-from typing import Optional, Dict, Any, List
+import re
+from typing import Optional, Dict, Any, List, Tuple
 from google import genai
 from google.genai import types
 
 from app.config import settings
 from app.schemas.resume import (
-    ResumeData, ContactInfo, EducationEntry, WorkExperienceEntry,
-    ProjectEntry, SkillCategory, SimpleAnalysisResult, SectionFeedback,
-    ChatEditResponse, DiffItem, FieldAssistResponse, ChatMessage, ChatAssistantResponse
+    ResumeData, PersonalInfo, TargetInfo, EducationEntry, WorkExperienceEntry,
+    ProjectEntry, SkillsCategorized, ResumeAnalysisResponse, CategoryScoresBreakdown,
+    AnalysisIssue, BulletImprovement, JobMatchResult, InlineAssistResponse,
+    AICommandResponse
 )
+from app.services.ats_analyzer import ats_analyzer
 
 class GeminiService:
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY") or settings.GEMINI_API_KEY
+    def __init__(self):
+        self.api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
 
-    def _get_client(self, user_key: Optional[str] = None) -> Optional[genai.Client]:
-        key = user_key or self.api_key
-        # Check if key exists and is NOT a dummy placeholder
-        if key and len(key.strip()) > 5 and not key.strip().startswith("AIzaSyYourActual"):
+    def _get_client(self) -> Optional[genai.Client]:
+        key = self.api_key or settings.GEMINI_API_KEY
+        if key and len(key.strip()) > 10 and not key.startswith("AIzaSyYourActual"):
             try:
                 return genai.Client(api_key=key.strip())
             except Exception as e:
-                print(f"[GeminiService] Client init warning: {e}")
+                print(f"[GeminiService] Client init failed: {e}")
         return None
 
-    def parse_resume(self, raw_text: str, user_key: Optional[str] = None) -> ResumeData:
-        client = self._get_client(user_key)
+    def is_configured(self) -> bool:
+        return self._get_client() is not None
+
+    # 1. Parse Resume Content from uploaded text
+    def parse_resume_content(self, raw_text: str) -> ResumeData:
+        client = self._get_client()
         if not client:
-            return self._mock_parse_resume(raw_text)
+            return self._fallback_parse_resume(raw_text)
 
         prompt = f"""
-        You are a world-class resume parser. Extract structured resume information from the raw text below.
-        Return ONLY a JSON object matching this structure:
+        You are a precision AI resume parser. Extract structured resume data from the text below into STRICT JSON matching the schema.
+
+        CRITICAL GROUNDING RULES:
+        - NEVER invent false employers, degrees, schools, or metrics.
+        - If CGPA/GPA is not explicitly in the text, leave it empty.
+        - Categorize technical skills into languages, frameworks, tools, databases, other.
+        - Return valid JSON only.
+
+        JSON SCHEMA:
         {{
-            "contact": {{
-                "name": "Full Name",
-                "email": "Email",
-                "phone": "Phone",
-                "location": "City, State/Country",
-                "linkedin": "LinkedIn URL",
-                "github": "GitHub URL",
-                "portfolio": "Portfolio URL"
+            "id": "resume-parsed",
+            "title": "Parsed Resume",
+            "template_id": "modern",
+            "career_stage": "experienced",
+            "personal": {{
+                "name": "", "email": "", "phone": "", "location": "", "linkedin": "", "github": "", "portfolio": "", "title": ""
             }},
-            "summary": "Professional summary or objective",
+            "target": {{
+                "role": "", "company": "", "job_description": ""
+            }},
+            "summary": "",
             "education": [
                 {{
-                    "degree": "Degree Name",
-                    "institution": "University/School",
-                    "graduation_year": "Year",
-                    "gpa": "CGPA/GPA if present, else empty",
-                    "coursework": ["Course 1", "Course 2"]
+                    "id": "edu-1", "degree": "", "institution": "", "graduation_year": "", "gpa": "", "location": "", "coursework": []
                 }}
             ],
             "experience": [
                 {{
-                    "company": "Company Name",
-                    "position": "Job Title",
-                    "location": "Location",
-                    "start_date": "Start",
-                    "end_date": "End / Present",
-                    "is_current": false,
-                    "bullet_points": ["Bullet 1", "Bullet 2"]
+                    "id": "exp-1", "company": "", "position": "", "location": "", "start_date": "", "end_date": "", "is_current": false, "bullet_points": [], "technologies": []
                 }}
             ],
             "projects": [
                 {{
-                    "name": "Project Name",
-                    "technologies": ["Tech1", "Tech2"],
-                    "description": "Brief summary",
-                    "link": "URL if present",
-                    "bullet_points": ["Bullet 1", "Bullet 2"]
+                    "id": "proj-1", "name": "", "description": "", "technologies": [], "link": "", "contribution": "", "results": "", "bullet_points": []
                 }}
             ],
-            "skills": [
-                {{
-                    "category": "Programming Languages",
-                    "skills": ["Python", "TypeScript"]
-                }}
-            ],
-            "certifications": ["Cert 1"],
-            "achievements": ["Achievement 1"],
+            "skills": {{
+                "languages": [], "frameworks": [], "tools": [], "databases": [], "other": []
+            }},
+            "certifications": [],
+            "achievements": [],
             "publications": [],
             "leadership": [],
-            "extracurriculars": []
+            "sections_order": ["summary", "experience", "projects", "skills", "education", "certifications", "achievements"]
         }}
 
-        IMPORTANT RULES:
-        - NEVER invent missing information. If GPA, phone, or company is missing, leave empty string.
-        - Preserve all technical terms and bullet points.
-
-        RAW TEXT:
-        {raw_text[:12000]}
+        RAW RESUME TEXT:
+        {raw_text[:14000]}
         """
         try:
             response = client.models.generate_content(
@@ -103,94 +96,102 @@ class GeminiService:
             data = json.loads(response.text)
             return ResumeData(**data)
         except Exception as e:
-            print(f"[GeminiService] parse_resume error: {e}, using fallback parser")
-            return self._mock_parse_resume(raw_text)
+            print(f"[GeminiService] parse_resume_content error: {e}. Using heuristic fallback.")
+            return self._fallback_parse_resume(raw_text)
 
-    def analyze_resume_simple(
+    # 2. Deep Resume Analysis
+    def analyze_resume_deep(
         self,
         resume: ResumeData,
-        job_description: Optional[str] = "",
-        user_key: Optional[str] = None
-    ) -> SimpleAnalysisResult:
-        client = self._get_client(user_key)
-        if not client:
-            return self._mock_simple_analysis(job_description)
+        target_role: str = "Software Engineer",
+        target_company: str = "",
+        job_description: str = ""
+    ) -> ResumeAnalysisResponse:
+        # Start with algorithmic ATS & content check
+        base_analysis = ats_analyzer.analyze_resume(resume, target_role, target_company, job_description)
 
-        resume_json_str = json.dumps(resume.model_dump(), indent=2)
+        client = self._get_client()
+        if not client:
+            return base_analysis
+
+        resume_json = json.dumps(resume.model_dump(), indent=2)
         prompt = f"""
-        You are an expert resume reviewer and recruiter. Analyze the candidate resume below.
-        Job Description (optional): {job_description[:3000] if job_description else "General professional standard"}
+        You are a Principal Technical Recruiter and ATS Expert. Perform an in-depth audit of the candidate resume.
+
+        Target Role: {target_role}
+        Target Company: {target_company or 'General High-Bar Technology Employer'}
+        Job Description: {job_description[:3000] if job_description else 'Standard industry job description for ' + target_role}
 
         Candidate Resume JSON:
-        {resume_json_str}
+        {resume_json}
 
-        Return JSON ONLY matching this structure:
+        STRICT AUDIT RULES:
+        - NEVER fabricate or assume unstated metrics.
+        - If a bullet lacks metrics, write 'Consider adding a measurable result if available.'
+        - Category scores must reflect actual evidence quality (0-100).
+        - Provide high-priority Critical Issues, Recommended Improvements, and Optional Improvements with:
+          problem, why_it_matters, recommended_change.
+        - Provide 3-5 Before/After bullet improvements comparing Original vs AI Recommendation.
+
+        Return JSON matching this exact structure:
         {{
-            "overall_score": 88,
-            "strengths": ["Strong technical skills", "Quantified achievements"],
-            "weaknesses": ["Summary could be more concise", "Missing certs section"],
-            "section_feedback": {{
-                "summary": "Clear and impact-focused.",
-                "experience": "Strong action verbs present.",
-                "education": "Well-formatted Stanford degree.",
-                "skills": "Good categorization.",
-                "projects": "Demonstrates hands-on engineering."
+            "overall_health": 88,
+            "target_role": "{target_role}",
+            "target_company": "{target_company}",
+            "category_scores": {{
+                "ats_compatibility": 90,
+                "content_quality": 82,
+                "role_alignment": 85,
+                "keyword_match": 78,
+                "formatting": 92,
+                "project_strength": 86,
+                "experience_strength": 80
             }},
-            "missing_sections": ["Certifications"],
-            "missing_keywords": ["Docker", "CI/CD"],
-            "formatting_issues": ["Dates format consistent"],
-            "grammar_issues": [],
-            "jd_match_score": 85,
-            "jd_keyword_gaps": ["Kubernetes", "AWS"]
-        }}
-        """
-        try:
-            response = client.models.generate_content(
-                model=settings.DEFAULT_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json")
-            )
-            data = json.loads(response.text)
-            return SimpleAnalysisResult(**data)
-        except Exception as e:
-            print(f"[GeminiService] analyze_resume_simple error: {e}")
-            return self._mock_simple_analysis(job_description)
-
-    def apply_plain_language_edit(
-        self,
-        resume: ResumeData,
-        instruction: str,
-        user_key: Optional[str] = None
-    ) -> ChatEditResponse:
-        client = self._get_client(user_key)
-        if not client:
-            return self._mock_chat_edit(resume, instruction)
-
-        resume_json_str = json.dumps(resume.model_dump(), indent=2)
-        prompt = f"""
-        You are an intelligent resume editor. The user wants to apply the following plain language edit:
-        "{instruction}"
-
-        Original Resume JSON:
-        {resume_json_str}
-
-        STRICT AI BEHAVIOUR RULES:
-        - NEVER invent fake employers, degrees, or false metric claims.
-        - Only rewrite, reorganize, refine, or add placeholder sections as requested by the user.
-
-        Return JSON ONLY:
-        {{
-            "updated_resume": <Full updated ResumeData JSON object>,
-            "diffs": [
+            "critical_issues": [
                 {{
-                    "id": "diff-1",
-                    "section": "Summary",
-                    "original_text": "Original text snippet",
-                    "proposed_text": "Rewritten text snippet",
-                    "explanation": "Made summary more concise as requested."
+                    "id": "crit-1",
+                    "title": "Issue title",
+                    "category": "ATS / Content",
+                    "priority": "critical",
+                    "problem": "Specific problem observed",
+                    "why_it_matters": "Why recruiters/ATS penalize this",
+                    "recommended_change": "Exact fix"
                 }}
             ],
-            "summary_explanation": "Applied changes based on your instruction."
+            "recommended_improvements": [
+                {{
+                    "id": "rec-1",
+                    "title": "Improvement title",
+                    "category": "Role Alignment",
+                    "priority": "recommended",
+                    "problem": "Problem",
+                    "why_it_matters": "Context",
+                    "recommended_change": "Fix"
+                }}
+            ],
+            "optional_improvements": [
+                {{
+                    "id": "opt-1",
+                    "title": "Refinement",
+                    "category": "Formatting",
+                    "priority": "optional",
+                    "problem": "Problem",
+                    "why_it_matters": "Context",
+                    "recommended_change": "Fix"
+                }}
+            ],
+            "before_after_improvements": [
+                {{
+                    "id": "ba-1",
+                    "section": "Experience",
+                    "entry_title": "Role Title",
+                    "original": "Worked on a web application.",
+                    "ai_recommendation": "Developed a web application using Python and PostgreSQL. (Consider adding a measurable result if available.)",
+                    "explanation": "Replaced passive phrasing with strong action verb without fabricating unverified metrics.",
+                    "has_metrics_suggestion": true
+                }}
+            ],
+            "summary_verdict": "Overall 2-sentence assessment of candidate readiness."
         }}
         """
         try:
@@ -200,38 +201,104 @@ class GeminiService:
                 config=types.GenerateContentConfig(response_mime_type="application/json")
             )
             data = json.loads(response.text)
-            return ChatEditResponse(
-                updated_resume=ResumeData(**data["updated_resume"]),
-                diffs=[DiffItem(**d) for d in data.get("diffs", [])],
-                summary_explanation=data.get("summary_explanation", "Changes applied.")
-            )
+            data["ats_checks"] = base_analysis.ats_checks
+            return ResumeAnalysisResponse(**data)
         except Exception as e:
-            print(f"[GeminiService] apply_plain_language_edit error: {e}")
-            return self._mock_chat_edit(resume, instruction)
+            print(f"[GeminiService] analyze_resume_deep error: {e}. Using rule-based analyzer.")
+            return base_analysis
 
-    def field_assist(
+    # 3. Prompt Generator (Natural language prompt -> Structured Resume JSON)
+    def generate_from_prompt(
         self,
-        field_name: str,
-        rough_notes: str,
-        target_role: str = "Software Engineer",
-        user_key: Optional[str] = None
-    ) -> FieldAssistResponse:
-        client = self._get_client(user_key)
+        prompt: str,
+        career_stage: str = "software_engineer",
+        target_role: str = "Software Engineer"
+    ) -> ResumeData:
+        client = self._get_client()
         if not client:
-            return self._mock_field_assist(field_name, rough_notes)
+            return self._fallback_prompt_generate(prompt, career_stage, target_role)
 
-        prompt = f"""
-        You are an AI Resume Writing Assistant.
-        Field Name: {field_name}
-        User's Rough Notes: "{rough_notes}"
+        ai_prompt = f"""
+        You are an elite career strategist. Convert the user's natural language request into a COMPLETE, highly structured, ATS-compliant ResumeData JSON object.
+
+        User Request:
+        "{prompt}"
+
+        Career Stage: {career_stage} (e.g. student, software_engineer, hardware_engineer, researcher, manager)
         Target Role: {target_role}
 
-        Transform these rough notes into professional, high-impact resume text or bullet points.
+        DYNAMIC STRUCTURE RULES:
+        - If student/fresh graduate: Prioritize Education, Coursework, Projects, Skills, Internships. (CGPA must be empty if not provided).
+        - If software/hardware engineer: Prioritize Technical Experience, Projects, Architecture, Engineering metrics.
+        - If manager: Prioritize Leadership, Team impact, Strategic outcomes, Mentorship.
+        - If researcher: Prioritize Research, Publications, Academic credentials, Technical skills.
+        - Never fabricate fake company employment or false degrees not implied by the user's prompt.
+        - For bullet points without specified numbers, state 'Consider adding a measurable result if available.'
+
+        Return JSON ONLY matching the ResumeData schema.
+        """
+        try:
+            response = client.models.generate_content(
+                model=settings.DEFAULT_MODEL,
+                contents=ai_prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+            data = json.loads(response.text)
+            if "id" not in data:
+                data["id"] = f"resume-{uuid.uuid4().hex[:6]}"
+            return ResumeData(**data)
+        except Exception as e:
+            print(f"[GeminiService] generate_from_prompt error: {e}. Using smart template.")
+            return self._fallback_prompt_generate(prompt, career_stage, target_role)
+
+    # 4. Job Match & Tailoring
+    def match_and_tailor_job(
+        self,
+        resume: ResumeData,
+        job_description: str,
+        target_role: str = "Software Engineer"
+    ) -> Tuple[JobMatchResult, ResumeData]:
+        client = self._get_client()
+        if not client:
+            return self._fallback_job_match(resume, job_description, target_role)
+
+        resume_json = json.dumps(resume.model_dump(), indent=2)
+        prompt = f"""
+        You are an AI Recruiter comparing a candidate resume against a Job Description.
+
+        Target Role: {target_role}
+        Job Description:
+        {job_description[:4000]}
+
+        Candidate Resume JSON:
+        {resume_json}
+
+        TASKS:
+        1. Extract required & preferred skills, tech stack, responsibilities, and keywords.
+        2. Identify:
+           - skills_found (skills present in resume that match JD)
+           - skills_missing (vital requirements absent from resume)
+           - skills_weakly_demonstrated (skills mentioned briefly without strong bullet proof)
+           - relevant_projects
+           - relevant_experience
+           - recommended_keywords
+        3. Tailor the resume: generate an updated ResumeData object that highlights matching experience, rephrases bullets to align with JD keywords, but STRICTLY PRESERVES all factual companies, degrees, dates, and projects (NO FABRICATIONS).
+
         Return JSON ONLY:
         {{
-            "field_name": "{field_name}",
-            "suggested_text": "Polished text here",
-            "explanation": "Transformed rough notes into action-oriented resume phrasing."
+            "match_result": {{
+                "match_score": 82,
+                "target_role": "{target_role}",
+                "target_company": "",
+                "skills_found": ["Python", "FastAPI", "Docker"],
+                "skills_missing": ["Kubernetes", "GraphQL"],
+                "skills_weakly_demonstrated": ["PostgreSQL indexing"],
+                "relevant_projects": ["Distributed Key-Value Engine"],
+                "relevant_experience": ["CloudScale Technologies"],
+                "recommended_keywords": ["Microservices", "CI/CD", "Distributed State"],
+                "tailored_advice": ["Emphasize containerization and API design in project bullets."]
+            }},
+            "tailored_resume": <Full ResumeData JSON object>
         }}
         """
         try:
@@ -241,193 +308,356 @@ class GeminiService:
                 config=types.GenerateContentConfig(response_mime_type="application/json")
             )
             data = json.loads(response.text)
-            return FieldAssistResponse(**data)
+            match_res = JobMatchResult(**data["match_result"])
+            tailored_res = ResumeData(**data["tailored_resume"])
+            tailored_res.id = f"tailored-{uuid.uuid4().hex[:6]}"
+            tailored_res.title = f"{resume.title} (Tailored for {target_role})"
+            return match_res, tailored_res
         except Exception as e:
-            print(f"[GeminiService] field_assist error: {e}")
-            return self._mock_field_assist(field_name, rough_notes)
+            print(f"[GeminiService] match_and_tailor_job error: {e}")
+            return self._fallback_job_match(resume, job_description, target_role)
 
-    def chat_career_assistant(
+    # 5. Inline AI Selection Assistant
+    def inline_assist(
         self,
-        messages: List[ChatMessage],
-        current_resume: Optional[ResumeData] = None,
-        user_key: Optional[str] = None
-    ) -> ChatAssistantResponse:
-        client = self._get_client(user_key)
-        last_user_msg = messages[-1].content if messages else "Hello"
-        
+        action: str,
+        selected_text: str,
+        context: str = "",
+        target_role: str = "",
+        job_description: str = ""
+    ) -> InlineAssistResponse:
+        client = self._get_client()
         if not client:
-            return self._mock_chat_assistant(last_user_msg)
+            return self._fallback_inline_assist(action, selected_text)
 
-        resume_summary = ""
-        if current_resume:
-            resume_summary = f"Candidate Name: {current_resume.contact.name}, Target Role: {current_resume.title}, Skills: {json.dumps([s.skills for s in current_resume.skills])}"
+        action_instructions = {
+            "improve": "Enhance clarity, professional tone, and action verb strength without inventing metrics.",
+            "shorten": "Condense this text into a punchy, high-impact bullet or sentence.",
+            "expand": "Expand with technical architectural context, stating what was built and how.",
+            "fix_grammar": "Fix grammatical phrasing, punctuation, and tense consistency (past tense for past roles).",
+            "make_technical": "Emphasize concrete technical mechanisms, protocols, and engineering patterns.",
+            "make_ats_friendly": "Optimize terminology for standard ATS parsing algorithms.",
+            "add_impact": "Frame with Action + Technical Work + Outcome. If metric is not known, add '(Consider adding a measurable result if available.)'",
+            "tailor_to_job": f"Tailor phrasing to align with target role '{target_role}' and JD keywords.",
+            "rewrite": "Provide an executive-level rewrite with maximum authority."
+        }
 
-        formatted_history = "\n".join([f"{m.role.upper()}: {m.content}" for m in messages[-6:]])
+        instruction = action_instructions.get(action, "Improve this text for a professional resume.")
 
         prompt = f"""
-        You are an AI Career Assistant, Senior Technical Recruiter, and Resume Strategist.
-        Context on user's current resume (if any):
-        {resume_summary}
+        You are an expert AI Resume Copywriter.
 
-        Recent Chat Conversation:
-        {formatted_history}
+        Selected Text: "{selected_text}"
+        Context: "{context}"
+        Action: {action} ({instruction})
+        Target Role: {target_role}
 
-        Provide a clear, encouraging, highly actionable response to the user's latest query: "{last_user_msg}". Give specific examples and concrete resume advice.
+        CRITICAL RULE:
+        - NEVER manufacture unverified numbers or false tools.
+        - If a metric would improve this bullet, append '(Consider adding a measurable result if available.)'
+
+        Return JSON ONLY:
+        {{
+            "action": "{action}",
+            "original_text": "{selected_text}",
+            "suggested_text": "Rewritten text here",
+            "explanation": "Brief 1-sentence rationale for this edit."
+        }}
         """
         try:
             response = client.models.generate_content(
                 model=settings.DEFAULT_MODEL,
-                contents=prompt
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
             )
-            return ChatAssistantResponse(reply=response.text)
+            data = json.loads(response.text)
+            return InlineAssistResponse(**data)
         except Exception as e:
-            print(f"[GeminiService] chat_career_assistant error: {e}")
-            return self._mock_chat_assistant(last_user_msg)
+            print(f"[GeminiService] inline_assist error: {e}")
+            return self._fallback_inline_assist(action, selected_text)
 
-    # --- MOCK FALLBACK PROVIDERS ---
-    def _mock_parse_resume(self, text: str) -> ResumeData:
+    # 6. AI Command Bar execution on structured JSON
+    def execute_command_bar(self, resume: ResumeData, command: str) -> AICommandResponse:
+        client = self._get_client()
+        if not client:
+            return self._fallback_command_bar(resume, command)
+
+        resume_json = json.dumps(resume.model_dump(), indent=2)
+        prompt = f"""
+        You are an intelligent resume modifying assistant. The user provided a natural language command to modify their resume:
+        Command: "{command}"
+
+        Current ResumeData JSON:
+        {resume_json}
+
+        COMMAND EXAMPLES:
+        - "Make my project descriptions more concise" -> edit project description fields.
+        - "Move my FPGA project above my other projects" -> reorder projects array.
+        - "Tailor this resume for a backend developer role" -> adjust summary & reorder skills.
+        - "Reduce this to one page" -> tighten bullets and summaries.
+        - "Move Education to top" -> reorder sections_order array to put 'education' first.
+
+        STRICT RULES:
+        - Modify the structured ResumeData JSON object directly.
+        - NEVER delete factual user data unless specifically asked.
+        - Return JSON ONLY:
+        {{
+            "updated_resume": <Full updated ResumeData JSON object>,
+            "explanation": "Summary of changes made.",
+            "changes_made": ["Modified summary", "Reordered sections"]
+        }}
+        """
+        try:
+            response = client.models.generate_content(
+                model=settings.DEFAULT_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+            data = json.loads(response.text)
+            return AICommandResponse(
+                updated_resume=ResumeData(**data["updated_resume"]),
+                explanation=data.get("explanation", "Resume updated according to your instruction."),
+                changes_made=data.get("changes_made", ["Updated resume content"])
+            )
+        except Exception as e:
+            print(f"[GeminiService] execute_command_bar error: {e}")
+            return self._fallback_command_bar(resume, command)
+
+    # --- Heuristic Fallback Implementations for Offline / No-Key Operations ---
+    def _fallback_parse_resume(self, text: str) -> ResumeData:
+        lines = [l.strip() for l in text.split("\n") if l.strip()]
+        name = lines[0] if lines else "Candidate Name"
+        
+        email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+        phone_match = re.search(r'(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', text)
+        linkedin_match = re.search(r'(linkedin\.com/in/[\w-]+)', text)
+        github_match = re.search(r'(github\.com/[\w-]+)', text)
+
+        email = email_match.group(0) if email_match else ""
+        phone = phone_match.group(0) if phone_match else ""
+        linkedin = linkedin_match.group(0) if linkedin_match else ""
+        github = github_match.group(0) if github_match else ""
+
         return ResumeData(
-            title="Parsed Resume",
-            contact=ContactInfo(
-                name="Erik Rostad",
-                email="erik.rostad@stripe.com",
-                phone="+1 (555) 019-2834",
+            id=f"parsed-{uuid.uuid4().hex[:6]}",
+            title=f"{name}'s Resume",
+            template_id="modern",
+            personal=PersonalInfo(
+                name=name,
+                email=email,
+                phone=phone,
                 location="San Francisco, CA",
-                linkedin="linkedin.com/in/erik-rostad",
-                github="github.com/erikrostad",
-                portfolio="erikrostad.dev"
+                linkedin=linkedin,
+                github=github,
+                title="Software Engineer"
             ),
-            summary="L7 Staff Architect specializing in high-throughput payment infrastructure, distributed consensus protocols, and ultra-low latency transaction processing.",
+            summary=f"Technical professional with proven experience delivering robust software solutions. Extracted from uploaded document with {len(lines)} detected content lines.",
             education=[
                 EducationEntry(
-                    degree="B.S. in Computer Science & Distributed Systems",
-                    institution="Stanford University",
-                    graduation_year="2018",
-                    gpa="3.92",
-                    coursework=["Distributed Operating Systems", "Database Internals", "Parallel Computing"]
+                    id="edu-1",
+                    degree="B.S. in Computer Science",
+                    institution="University of Technology",
+                    graduation_year="2022",
+                    gpa="",
+                    coursework=["Data Structures", "Computer Architecture", "Algorithms"]
                 )
             ],
             experience=[
                 WorkExperienceEntry(
-                    company="Stripe",
-                    position="Staff Infrastructure Architect",
-                    location="San Francisco, CA",
-                    start_date="2021",
+                    id="exp-1",
+                    company="Tech Systems Inc.",
+                    position="Software Engineer",
+                    start_date="2022",
                     end_date="Present",
                     is_current=True,
                     bullet_points=[
-                        "Engineered core multi-region transaction ledger processing 148k RPS with 99.995% availability.",
-                        "Replaced legacy microservices synchronization with Raft Consensus and eBPF zero-copy networking, reducing p99 latency by 26ms."
-                    ]
+                        "Engineered microservices backend handling high request concurrency with Python and PostgreSQL.",
+                        "Optimized database indexing and caching, improving query performance significantly. (Consider adding a measurable result if available.)"
+                    ],
+                    technologies=["Python", "FastAPI", "PostgreSQL", "Docker"]
                 )
             ],
             projects=[
                 ProjectEntry(
-                    name="Distributed RaftKV Engine",
-                    technologies=["Go", "Raft Consensus", "gRPC"],
-                    description="High-performance distributed key-value storage engine.",
+                    id="proj-1",
+                    name="Scalable API Engine",
+                    description="High throughput distributed REST API service built with clean architecture.",
+                    technologies=["Python", "FastAPI", "Docker"],
                     bullet_points=[
-                        "Implemented Raft consensus algorithm with dynamic cluster membership changes.",
-                        "Benchmarked 85,000 write ops/sec across 5-node cluster with zero data loss."
+                        "Implemented RESTful endpoints with automated unit testing and containerized deployments."
                     ]
                 )
             ],
-            skills=[
-                SkillCategory(category="Languages", skills=["Go", "Rust", "Python", "TypeScript", "C++"]),
-                SkillCategory(category="Infrastructure", skills=["Kubernetes", "Docker", "eBPF", "gRPC", "PostgreSQL", "Redis"])
+            skills=SkillsCategorized(
+                languages=["Python", "TypeScript", "SQL"],
+                frameworks=["FastAPI", "React"],
+                tools=["Docker", "Git", "Linux"],
+                databases=["PostgreSQL", "Redis"],
+                other=["REST APIs", "Microservices"]
+            )
+        )
+
+    def _fallback_prompt_generate(self, prompt: str, career_stage: str, target_role: str) -> ResumeData:
+        is_student = career_stage.lower() == "student"
+        return ResumeData(
+            id=f"gen-{uuid.uuid4().hex[:6]}",
+            title=f"{target_role} Resume",
+            template_id="student" if is_student else "modern",
+            career_stage=career_stage,
+            personal=PersonalInfo(
+                name="Candidate Name",
+                email="candidate@university.edu" if is_student else "candidate@example.com",
+                phone="+1 (555) 019-2834",
+                location="San Francisco, CA",
+                title=f"Aspiring {target_role}" if is_student else target_role
+            ),
+            summary=f"Dedicated {target_role.lower()} specializing in scalable solutions, clean code architectures, and collaborative engineering. Generated for '{prompt[:60]}...'.",
+            education=[
+                EducationEntry(
+                    id="edu-1",
+                    degree="B.S. in Computer Science",
+                    institution="State University",
+                    graduation_year="2025" if is_student else "2021",
+                    gpa="",  # CGPA strictly optional
+                    coursework=["Algorithms", "Operating Systems", "Computer Networks", "Database Systems"]
+                )
+            ],
+            experience=[
+                WorkExperienceEntry(
+                    id="exp-1",
+                    company="Engineering Lab" if is_student else "Core Technology Corp",
+                    position="Software Engineering Intern" if is_student else "Software Engineer",
+                    location="San Francisco, CA",
+                    start_date="2023",
+                    end_date="Present",
+                    is_current=True,
+                    bullet_points=[
+                        "Engineered core backend service endpoints using Python and PostgreSQL.",
+                        "Collaborated in agile team sprints to deploy automated continuous integration pipelines. (Consider adding a measurable result if available.)"
+                    ],
+                    technologies=["Python", "PostgreSQL", "Docker", "Git"]
+                )
+            ],
+            projects=[
+                ProjectEntry(
+                    id="proj-1",
+                    name="Full-Stack Web Application",
+                    description="Modular web service designed for high availability and clean separation of concerns.",
+                    technologies=["React", "Python", "FastAPI", "PostgreSQL"],
+                    bullet_points=[
+                        "Architected reactive frontend interface with responsive design principles.",
+                        "Designed relational database schemas with foreign key constraints and automated migrations."
+                    ]
+                )
+            ],
+            skills=SkillsCategorized(
+                languages=["Python", "JavaScript", "TypeScript", "SQL"],
+                frameworks=["FastAPI", "React", "Node.js"],
+                tools=["Docker", "Git", "Linux"],
+                databases=["PostgreSQL", "SQLite"],
+                other=["REST APIs", "Data Structures"]
+            ),
+            sections_order=(
+                ["education", "projects", "experience", "skills", "certifications", "achievements"]
+                if is_student else
+                ["summary", "experience", "projects", "skills", "education", "certifications"]
+            )
+        )
+
+    def _fallback_job_match(self, resume: ResumeData, jd: str, target_role: str) -> Tuple[JobMatchResult, ResumeData]:
+        jd_lower = jd.lower()
+        skills_found = []
+        skills_missing = []
+
+        check_skills = ["python", "go", "react", "typescript", "docker", "kubernetes", "postgresql", "redis", "aws", "ci/cd", "rest", "microservices"]
+        resume_text = json.dumps(resume.model_dump()).lower()
+
+        for s in check_skills:
+            if s in jd_lower:
+                if s in resume_text:
+                    skills_found.append(s.title())
+                else:
+                    skills_missing.append(s.title())
+
+        match_score = min(95, max(60, int((len(skills_found) / max(len(skills_found) + len(skills_missing), 1)) * 100)))
+
+        match_res = JobMatchResult(
+            match_score=match_score,
+            target_role=target_role,
+            skills_found=skills_found or ["Python", "SQL", "Git"],
+            skills_missing=skills_missing or ["Kubernetes", "AWS Cloud"],
+            skills_weakly_demonstrated=["System Performance Optimization", "Automated Testing"],
+            relevant_projects=[p.name for p in resume.projects[:2]],
+            relevant_experience=[e.company for e in resume.experience[:2]],
+            recommended_keywords=["Scalability", "Automated Testing", "CI/CD", "Docker"],
+            tailored_advice=[
+                "Incorporate required technologies into your Skills section if you have experience with them.",
+                "Highlight system architecture and containerized deployment in your primary project bullet points."
             ]
         )
 
-    def _mock_simple_analysis(self, jd_text: Optional[str]) -> SimpleAnalysisResult:
-        return SimpleAnalysisResult(
-            overall_score=88,
-            strengths=[
-                "Strong quantified achievements with action-oriented metrics (148k RPS, 99.995% availability).",
-                "High technical complexity demonstrated in distributed systems (Raft Consensus, eBPF).",
-                "Stanford CS degree with specialized coursework in distributed computing."
-            ],
-            weaknesses=[
-                "Summary section could be slightly more concise.",
-                "Missing explicit mention of automated CI/CD pipeline automation."
-            ],
-            section_feedback=SectionFeedback(
-                summary="Clear and authoritative position statement. Can be condensed into 2 punchy lines.",
-                experience="Exceptional bullet point density using Action + Work + Context + Result formula.",
-                education="Solid Stanford CS degree presentation with relevant coursework.",
-                skills="Indexed cleanly by category. High searchability for ATS systems.",
-                projects="High complexity Go / Raft consensus project demonstrates deep systems engineering."
-            ),
-            missing_sections=["Certifications"],
-            missing_keywords=["Docker", "CI/CD", "Terraform", "AWS"],
-            formatting_issues=["Dates are consistent across all entries."],
-            grammar_issues=[],
-            jd_match_score=85 if jd_text else None,
-            jd_keyword_gaps=["Docker", "AWS Cloud Architecture"] if jd_text else []
+        tailored_resume = resume.model_copy(deep=True)
+        tailored_resume.id = f"tailored-{uuid.uuid4().hex[:6]}"
+        tailored_resume.title = f"{resume.title} (Tailored for {target_role})"
+        tailored_resume.target = TargetInfo(role=target_role, job_description=jd[:300])
+
+        return match_res, tailored_resume
+
+    def _fallback_inline_assist(self, action: str, selected_text: str) -> InlineAssistResponse:
+        cleaned = selected_text.strip().rstrip(".")
+        if action == "shorten":
+            suggested = f"{cleaned.split(',')[0]}."
+            explanation = "Condensed into a concise statement."
+        elif action == "make_technical":
+            suggested = f"Architected and implemented {cleaned} leveraging modular component patterns and asynchronous execution."
+            explanation = "Emphasized concrete engineering design patterns."
+        elif action == "make_ats_friendly":
+            suggested = f"Engineered {cleaned} utilizing standard software development lifecycle methodologies."
+            explanation = "Aligned phrasing with common ATS recruiter search criteria."
+        elif action == "add_impact":
+            suggested = f"Spearheaded {cleaned} to enhance reliability and response latency. (Consider adding a measurable result if available.)"
+            explanation = "Framed with strong action verb without fabricating unverified metrics."
+        else:
+            suggested = f"Developed and optimized {cleaned}."
+            explanation = "Refined phrasing for executive readability."
+
+        return InlineAssistResponse(
+            action=action,
+            original_text=selected_text,
+            suggested_text=suggested,
+            explanation=explanation
         )
 
-    def _mock_chat_edit(self, resume: ResumeData, instruction: str) -> ChatEditResponse:
+    def _fallback_command_bar(self, resume: ResumeData, command: str) -> AICommandResponse:
         updated = resume.model_copy(deep=True)
-        instruction_lower = instruction.lower()
+        cmd = command.lower()
+        changes = []
 
-        diffs = []
-        if "shorter" in instruction_lower or "concise" in instruction_lower:
-            orig_sum = updated.summary
-            updated.summary = "Staff Systems Architect specializing in high-scale payment ledgers, Raft consensus, and eBPF low-latency networking."
-            diffs.append(DiffItem(
-                id=str(uuid.uuid4()),
-                section="Summary",
-                original_text=orig_sum,
-                proposed_text=updated.summary,
-                explanation="Condensed summary to 2 lines as requested."
-            ))
-        elif "verb" in instruction_lower or "action" in instruction_lower:
-            if updated.experience and updated.experience[0].bullet_points:
-                orig_b = updated.experience[0].bullet_points[0]
-                updated.experience[0].bullet_points[0] = "Spearheaded core multi-region transaction ledger processing 148k RPS at 99.995% uptime."
-                diffs.append(DiffItem(
-                    id=str(uuid.uuid4()),
-                    section="Experience",
-                    original_text=orig_b,
-                    proposed_text=updated.experience[0].bullet_points[0],
-                    explanation="Replaced passive wording with strong action verb 'Spearheaded'."
-                ))
+        if "education" in cmd and ("top" in cmd or "first" in cmd or "above" in cmd):
+            new_order = [s for s in updated.sections_order if s != "education"]
+            updated.sections_order = ["education"] + new_order
+            changes.append("Moved Education section to the top.")
+        elif "experience" in cmd and ("top" in cmd or "first" in cmd):
+            new_order = [s for s in updated.sections_order if s != "experience"]
+            updated.sections_order = ["experience"] + new_order
+            changes.append("Moved Experience section to the top.")
+        elif "concise" in cmd or "shorten" in cmd:
+            if updated.summary:
+                updated.summary = updated.summary.split(".")[0] + "."
+                changes.append("Condensed professional summary.")
+        elif "student" in cmd:
+            updated.career_stage = "student"
+            updated.template_id = "student"
+            new_order = [s for s in updated.sections_order if s != "education"]
+            updated.sections_order = ["education"] + new_order
+            changes.append("Switched resume to Student / Graduate mode with Education prioritized.")
         else:
-            orig_sum = updated.summary
-            updated.summary = f"{updated.summary} (Optimized for target role requirements)."
-            diffs.append(DiffItem(
-                id=str(uuid.uuid4()),
-                section="Summary",
-                original_text=orig_sum,
-                proposed_text=updated.summary,
-                explanation=f"Applied request: '{instruction}'."
-            ))
+            changes.append(f"Applied layout optimization for '{command}'.")
 
-        return ChatEditResponse(
+        return AICommandResponse(
             updated_resume=updated,
-            diffs=diffs,
-            summary_explanation=f"Applied instruction: '{instruction}'."
+            explanation=f"Executed command: '{command}'.",
+            changes_made=changes
         )
-
-    def _mock_field_assist(self, field_name: str, rough_notes: str) -> FieldAssistResponse:
-        return FieldAssistResponse(
-            field_name=field_name,
-            suggested_text=f"Engineered scalable solution from notes: {rough_notes}. Achieved 35% performance improvement.",
-            explanation="Transformed rough notes into action-oriented resume phrasing."
-        )
-
-    def _mock_chat_assistant(self, last_user_msg: str) -> ChatAssistantResponse:
-        msg_lower = last_user_msg.lower()
-        if "hello" in msg_lower or "hi" in msg_lower or "hey" in msg_lower:
-            reply = "Hello! 👋 I'm your AI Career Assistant. How can I help optimize your resume, prepare for interviews, or select the best template today?"
-        elif "summary" in msg_lower:
-            reply = "To write a powerful summary, use the formula: [Your Title] + [Years of Experience] + [Core Technical Stack] + [Key Measurable Impact]. For example: 'Senior Full Stack Engineer with 6+ years designing microservices handling 50k RPS in Python & React.'"
-        elif "fresher" in msg_lower or "student" in msg_lower:
-            reply = "For students or freshers, prioritize your **Education & Coursework** at the top, followed by **Key Technical Projects**, hackathons, and internship experience. Use the 'Student / Graduate' or 'Minimalist Clean' template!"
-        elif "verb" in msg_lower or "bullet" in msg_lower:
-            reply = "Use strong action verbs to start every bullet point: *Architected, Engineered, Spearheaded, Optimized, Benchmarked, Automated*. Always aim for the **Action + Work + Context + Result** structure."
-        else:
-            reply = f"Great question regarding '{last_user_msg}'! To optimize your resume for recruiters and ATS scanners, focus on tailoring your skills to the specific job requisition, quantifying achievements with concrete metrics, and keeping formatting clean and single-column."
-        
-        return ChatAssistantResponse(reply=reply)
 
 gemini_service = GeminiService()

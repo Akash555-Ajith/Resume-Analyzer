@@ -1,224 +1,164 @@
 import React, { useState } from 'react';
-import { LayoutTemplate, Sparkles, Check, ArrowRight, Eye, X } from 'lucide-react';
-import { ResumeData, TemplateConfig } from '../../types/resume';
+import { useResume } from '../../context/ResumeContext';
 import { ResumeRenderer } from './ResumeRenderer';
+import { 
+  LayoutTemplate, 
+  Check, 
+  Sparkles, 
+  ArrowRight, 
+  ShieldCheck, 
+  Code2, 
+  GraduationCap, 
+  Briefcase, 
+  Microscope 
+} from 'lucide-react';
 
-interface TemplatesPageProps {
-  resume: ResumeData;
-  setResume: React.Dispatch<React.SetStateAction<ResumeData>>;
-  onUseTemplateForGenerator: (templateId: string) => void;
-  onUseTemplateForAnalyser: (templateId: string) => void;
-}
+export const TemplatesPage: React.FC = () => {
+  const { currentResume, setCurrentResume, setActivePage } = useResume();
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(currentResume?.template_id || 'modern');
 
-export const TemplatesPage: React.FC<TemplatesPageProps> = ({
-  resume,
-  setResume,
-  onUseTemplateForGenerator,
-  onUseTemplateForAnalyser
-}) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [previewTemplateModal, setPreviewTemplateModal] = useState<TemplateConfig | null>(null);
-
-  const templatesList: TemplateConfig[] = [
+  const templates = [
+    {
+      id: 'modern',
+      name: 'Modern Professional',
+      icon: Sparkles,
+      tag: 'Most Popular',
+      desc: 'Clean typography, subtle visual hierarchy, and balanced whitespace. Ideal for software engineers, product managers, and modern tech roles.'
+    },
     {
       id: 'ats_classic',
       name: 'ATS Classic',
-      category: 'Classic',
-      styleTag: 'Single Column • 100% Machine-Readable',
-      suggestedUse: 'Best for traditional corporate & enterprise ATS applications'
-    },
-    {
-      id: 'modern_professional',
-      name: 'Modern Professional',
-      category: 'Modern',
-      styleTag: 'Clean Typography • Subtle Borders',
-      suggestedUse: 'Best for mid-level professionals & software engineers'
-    },
-    {
-      id: 'minimal',
-      name: 'Minimalist Clean',
-      category: 'Minimal',
-      styleTag: 'Generous Whitespace • Ultra Clean',
-      suggestedUse: 'Best for freshers, students & design-minded roles'
-    },
-    {
-      id: 'creative',
-      name: 'Creative Portfolio',
-      category: 'Creative',
-      styleTag: 'Bold Accent Colors • Strong Visual Hierarchy',
-      suggestedUse: 'Best for designers, marketers & product owners'
+      icon: ShieldCheck,
+      tag: '100% ATS Safe',
+      desc: 'Single-column monochrome layout with standard serif headings and minimal styling. Guaranteed maximum parser compatibility across legacy ATS systems.'
     },
     {
       id: 'technical',
-      name: 'Tech / Developer',
-      category: 'Tech',
-      styleTag: 'High Code Density • Skills Matrix Indexed',
-      suggestedUse: 'Best for SWE, DevOps, ML/AI, FPGA & Embedded Systems'
+      name: 'Technical Engineer',
+      icon: Code2,
+      tag: 'Engineering Focus',
+      desc: 'Optimized for software, systems, hardware, and FPGA engineering. Highlights technologies, GitHub repository links, and architectural complexity.'
     },
     {
-      id: 'executive',
-      name: 'Executive Leadership',
-      category: 'Executive',
-      styleTag: 'Strategic Overview • Authority Layout',
-      suggestedUse: 'Best for Directors, VPs, Managers & Lead Architects'
+      id: 'student',
+      name: 'Student & Graduate',
+      icon: GraduationCap,
+      tag: 'Entry-Level',
+      desc: 'Prioritizes education, relevant coursework, academic hackathons, and personal projects. CGPA is optional and cleanly handled.'
     },
     {
-      id: 'twocolumn',
-      name: 'Two-Column Split',
-      category: 'Two-column',
-      styleTag: 'Sidebar Skills Panel • Compact Experience',
-      suggestedUse: 'Best for fitting extensive project lists into 1 page'
+      id: 'management',
+      name: 'Management & Leadership',
+      icon: Briefcase,
+      tag: 'Executive',
+      desc: 'Designed for engineering managers, directors, and business professionals. Accentuates team orchestration, business metrics, and strategic delivery.'
     },
     {
-      id: 'compact',
-      name: 'Compact One-Page',
-      category: 'Compact',
-      styleTag: 'High Information Density • Tight Margins',
-      suggestedUse: 'Best for candidates with 5+ years experience needing 1 page'
-    }
+      id: 'academic',
+      name: 'Academic & Research',
+      icon: Microscope,
+      tag: 'Scholarly',
+      desc: 'Optimized for researchers, PhD candidates, and academics. Gives prominence to peer-reviewed publications, methodology, citations, and university credentials.'
+    },
   ];
 
-  const categories = ['All', 'Classic', 'Modern', 'Minimal', 'Creative', 'Tech', 'Executive', 'Two-column', 'Compact'];
+  const handleApplyTemplate = (tmplId: string) => {
+    setSelectedTemplate(tmplId);
+    if (currentResume) {
+      setCurrentResume({ ...currentResume, template_id: tmplId });
+    }
+  };
 
-  const filteredTemplates = selectedCategory === 'All'
-    ? templatesList
-    : templatesList.filter(t => t.category === selectedCategory);
+  const handleUseAndOpenEditor = () => {
+    if (currentResume) {
+      setCurrentResume({ ...currentResume, template_id: selectedTemplate });
+      setActivePage('editor');
+    }
+  };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
+    <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-8 font-sans">
       
-      {/* Header */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
-        <div className="space-y-1">
-          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-orange">
-            PAGE 3: TEMPLATES GALLERY
-          </span>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Professional Resume Template Gallery
+      {/* Title */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+            <LayoutTemplate className="w-7 h-7 text-blue-600" />
+            <span>Resume Templates</span>
           </h1>
-          <p className="text-xs text-slate-600">
-            Choose from 8 ready-made, ATS-vetted resume templates. Apply directly to your Analyser resume or launch the step-by-step Generator.
+          <p className="text-sm text-slate-500 mt-1">
+            Choose from 6 professionally crafted, ATS-compliant React templates. Content and design remain completely separate.
           </p>
         </div>
+
+        <button
+          onClick={handleUseAndOpenEditor}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-xs hover:bg-blue-700 transition-all"
+        >
+          <span>Use Selected in Editor</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Category Filters */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-colors ${
-              selectedCategory === cat
-                ? 'bg-brand-orange text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {/* Grid of 8 Templates */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {filteredTemplates.map((template) => {
-          const isSelected = resume.template_id === template.id;
+      {/* Templates Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {templates.map((tmpl) => {
+          const Icon = tmpl.icon;
+          const isSelected = selectedTemplate === tmpl.id;
           return (
             <div
-              key={template.id}
-              className={`bg-white rounded-xl border p-4 shadow-2xs flex flex-col justify-between transition-all space-y-3 ${
-                isSelected ? 'border-brand-orange ring-2 ring-brand-orange/20' : 'border-slate-200 hover:border-slate-300'
+              key={tmpl.id}
+              onClick={() => handleApplyTemplate(tmpl.id)}
+              className={`bg-white rounded-2xl border cursor-pointer transition-all p-6 flex flex-col justify-between ${
+                isSelected
+                  ? 'border-blue-600 shadow-md ring-2 ring-blue-600/20'
+                  : 'border-slate-200/80 shadow-xs hover:border-slate-300'
               }`}
             >
-              <div className="space-y-2">
-                {/* Mini Renderer Thumbnail */}
-                <div 
-                  onClick={() => setPreviewTemplateModal(template)}
-                  className="bg-slate-50 border border-slate-200 rounded-lg p-3 h-48 overflow-hidden relative cursor-pointer group"
-                >
-                  <div className="transform scale-[0.4] origin-top-left w-[250%] pointer-events-none">
-                    <ResumeRenderer resume={{ ...resume, template_id: template.id }} />
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="px-3 py-1.5 bg-white text-slate-900 font-bold text-xs rounded-lg shadow-md flex items-center gap-1">
-                      <Eye className="w-3.5 h-3.5 text-brand-orange" /> Preview Full Template
-                    </span>
-                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
+                    {tmpl.tag}
+                  </span>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-slate-900">{template.name}</h3>
-                    <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-semibold">
-                      {template.category}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">{template.styleTag}</p>
-                </div>
-
-                <div className="p-2 bg-slate-50 rounded text-[10px] text-slate-600 border border-slate-100 font-medium">
-                  ✨ <strong>Suggested Use:</strong> {template.suggestedUse}
-                </div>
+                <h3 className="font-bold text-base text-slate-900">{tmpl.name}</h3>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{tmpl.desc}</p>
               </div>
 
-              {/* Template Action Buttons */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                <button
-                  onClick={() => onUseTemplateForAnalyser(template.id)}
-                  className="w-full py-1.5 bg-brand-orange hover:bg-brand-orange-hover text-white text-xs font-semibold rounded shadow-2xs transition-colors flex items-center justify-center gap-1"
-                >
-                  <Check className="w-3.5 h-3.5" /> Apply to Analyser Resume
-                </button>
-                <button
-                  onClick={() => onUseTemplateForGenerator(template.id)}
-                  className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded transition-colors flex items-center justify-center gap-1"
-                >
-                  Start Generator with this
-                </button>
+              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                {isSelected ? (
+                  <span className="text-blue-600 font-bold flex items-center gap-1.5">
+                    <Check className="w-4 h-4" /> Selected Template
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-medium">Click to select</span>
+                )}
+                <span className="text-blue-600 font-semibold hover:underline">Preview</span>
               </div>
-
             </div>
           );
         })}
       </div>
 
-      {/* Full Preview Modal */}
-      {previewTemplateModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 font-sans">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+      {/* Live Preview of Selected Template */}
+      {currentResume && (
+        <div className="bg-slate-100 rounded-2xl border border-slate-200 p-6 space-y-4">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <span>Live Preview with Your Data ({selectedTemplate}):</span>
             <button
-              onClick={() => setPreviewTemplateModal(null)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 p-1 rounded-md"
+              onClick={handleUseAndOpenEditor}
+              className="text-blue-600 hover:underline flex items-center gap-1 font-bold"
             >
-              <X className="w-5 h-5" />
+              <span>Edit this template</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
-
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-slate-900">{previewTemplateModal.name}</h3>
-              <p className="text-xs text-slate-500 font-mono">{previewTemplateModal.styleTag}</p>
-            </div>
-
-            <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl">
-              <ResumeRenderer resume={{ ...resume, template_id: previewTemplateModal.id }} />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => setPreviewTemplateModal(null)}
-                className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50"
-              >
-                Close Preview
-              </button>
-              <button
-                onClick={() => {
-                  onUseTemplateForAnalyser(previewTemplateModal.id);
-                  setPreviewTemplateModal(null);
-                }}
-                className="px-4 py-2 bg-brand-orange text-white text-xs font-semibold rounded-lg shadow-2xs hover:bg-brand-orange-hover"
-              >
-                Use Template for Analyser
-              </button>
-            </div>
+          </div>
+          <div className="flex justify-center overflow-x-auto py-2">
+            <ResumeRenderer resume={currentResume} templateId={selectedTemplate} scale={0.85} />
           </div>
         </div>
       )}
