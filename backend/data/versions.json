@@ -1,0 +1,586 @@
+{
+  "master-1": [
+    {
+      "id": "ver-376dfe80",
+      "resume_id": "master-1",
+      "version_name": "AI Optimized",
+      "created_at": "2026-09-23T16:15:24.372301",
+      "change_summary": "Command Bar: Move Education to top",
+      "data": {
+        "id": "master-1",
+        "title": "Software Engineer Resume",
+        "template_id": "modern",
+        "career_stage": "software_engineer",
+        "personal": {
+          "name": "Alex Mercer",
+          "email": "alex.mercer@example.com",
+          "phone": "+1 (555) 349-2810",
+          "location": "San Francisco, CA",
+          "linkedin": "linkedin.com/in/alex-mercer",
+          "github": "github.com/alexmercer",
+          "portfolio": "alexmercer.dev",
+          "title": "Full-Stack & Distributed Systems Engineer"
+        },
+        "target": {
+          "role": "",
+          "company": "",
+          "job_description": ""
+        },
+        "summary": "Software engineer with 4+ years of experience designing high-throughput backend services and reactive web applications. Proven track record of reducing latency by 35% and automating CI/CD pipelines.",
+        "education": [
+          {
+            "id": "edu-1",
+            "degree": "B.S. in Computer Science",
+            "institution": "University of California, Berkeley",
+            "graduation_year": "2021",
+            "gpa": "3.85",
+            "location": "Berkeley, CA",
+            "coursework": [
+              "Distributed Systems",
+              "Database Management",
+              "Algorithms & Data Structures"
+            ]
+          }
+        ],
+        "experience": [
+          {
+            "id": "exp-1",
+            "company": "CloudScale Technologies",
+            "position": "Senior Software Engineer",
+            "location": "San Francisco, CA",
+            "start_date": "2022",
+            "end_date": "Present",
+            "is_current": true,
+            "bullet_points": [
+              "Architected distributed event-driven ingestion pipeline handling 120,000 events/second using Go, Kafka, and PostgreSQL.",
+              "Optimized database query indexes and caching layers in Redis, reducing p99 API query response times from 180ms to 42ms.",
+              "Collaborated with cross-functional engineering teams to implement automated end-to-end testing with 88% code coverage."
+            ],
+            "technologies": [
+              "Go",
+              "Kafka",
+              "PostgreSQL",
+              "Redis",
+              "Docker",
+              "Kubernetes"
+            ]
+          },
+          {
+            "id": "exp-2",
+            "company": "Nexus Systems",
+            "position": "Software Engineer",
+            "location": "San Jose, CA",
+            "start_date": "2021",
+            "end_date": "2022",
+            "is_current": false,
+            "bullet_points": [
+              "Developed microservices backend for financial analytics dashboard using Python, FastAPI, and SQLAlchemy.",
+              "Designed responsive React and TypeScript UI components with accessible design system guidelines.",
+              "Integrated automated GitHub Actions workflows for continuous integration and staging deployments."
+            ],
+            "technologies": [
+              "Python",
+              "FastAPI",
+              "React",
+              "TypeScript",
+              "PostgreSQL"
+            ]
+          }
+        ],
+        "projects": [
+          {
+            "id": "proj-1",
+            "name": "Distributed Key-Value Engine",
+            "description": "Fault-tolerant distributed key-value store implementing Raft consensus protocol.",
+            "technologies": [
+              "Go",
+              "Raft",
+              "gRPC",
+              "Docker"
+            ],
+            "link": "github.com/alexmercer/raft-kv",
+            "contribution": "Engineered leader election and log replication logic.",
+            "results": "Achieved linearizable read performance across 5 distributed nodes.",
+            "bullet_points": [
+              "Implemented Raft consensus algorithm with dynamic leader election and log compaction routines.",
+              "Benchmarked write throughput to 45,000 operations per second under simulated packet loss.",
+              "Configured containerized integration tests using Docker Compose and GitHub Actions."
+            ],
+            "evidence": "Raft KV repository with unit tests and benchmark suite"
+          },
+          {
+            "id": "proj-2",
+            "name": "Real-time Telemetry Monitor",
+            "description": "Kernel-level packet inspection monitor built with eBPF and visualized via React dashboard.",
+            "technologies": [
+              "C",
+              "eBPF",
+              "Python",
+              "React",
+              "WebSockets"
+            ],
+            "link": "github.com/alexmercer/ebpf-monitor",
+            "contribution": "Wrote kernel probes and WebSocket streaming server.",
+            "results": "Zero overhead live packet latency tracking.",
+            "bullet_points": [
+              "Developed eBPF bytecode programs capturing TCP socket metrics directly from Linux kernel space.",
+              "Built streaming WebSocket bridge in Python dispatching telemetry to an interactive React dashboard."
+            ],
+            "evidence": "eBPF C probe source files and frontend telemetry charts"
+          }
+        ],
+        "skills": {
+          "languages": [
+            "Python",
+            "Go",
+            "TypeScript",
+            "JavaScript",
+            "SQL",
+            "C++"
+          ],
+          "frameworks": [
+            "FastAPI",
+            "React",
+            "Node.js",
+            "Django",
+            "Next.js"
+          ],
+          "tools": [
+            "Docker",
+            "Kubernetes",
+            "Git",
+            "GitHub Actions",
+            "Linux",
+            "Terraform"
+          ],
+          "databases": [
+            "PostgreSQL",
+            "Redis",
+            "MongoDB"
+          ],
+          "other": [
+            "Distributed Systems",
+            "REST APIs",
+            "gRPC",
+            "Microservices Architecture"
+          ]
+        },
+        "certifications": [
+          "AWS Certified Solutions Architect - Associate",
+          "Certified Kubernetes Administrator (CKA)"
+        ],
+        "achievements": [
+          "Dean's Honors List (UC Berkeley 2019-2021)",
+          "1st Place Hackathon Winner - CalHacks"
+        ],
+        "publications": [
+          "Low Latency Consensus Patterns in Distributed Ledgers (Conference Paper, 2023)"
+        ],
+        "leadership": [
+          "Peer Mentor - CS Undergrad Mentorship Program"
+        ],
+        "sections_order": [
+          "education",
+          "summary",
+          "experience",
+          "projects",
+          "skills",
+          "certifications",
+          "achievements",
+          "publications",
+          "leadership"
+        ],
+        "created_at": "2026-09-23T15:27:07.622174",
+        "updated_at": "2026-09-23T16:15:24.370648"
+      }
+    },
+    {
+      "id": "ver-b060a5f6",
+      "resume_id": "master-1",
+      "version_name": "AI Optimized",
+      "created_at": "2026-09-23T16:17:22.367025",
+      "change_summary": "Command Bar: Move Education to top",
+      "data": {
+        "id": "master-1",
+        "title": "Software Engineer Resume",
+        "template_id": "modern",
+        "career_stage": "software_engineer",
+        "personal": {
+          "name": "Alex Mercer",
+          "email": "alex.mercer@example.com",
+          "phone": "+1 (555) 349-2810",
+          "location": "San Francisco, CA",
+          "linkedin": "linkedin.com/in/alex-mercer",
+          "github": "github.com/alexmercer",
+          "portfolio": "alexmercer.dev",
+          "title": "Full-Stack & Distributed Systems Engineer"
+        },
+        "target": {
+          "role": "",
+          "company": "",
+          "job_description": ""
+        },
+        "summary": "Software engineer with 4+ years of experience designing high-throughput backend services and reactive web applications. Proven track record of reducing latency by 35% and automating CI/CD pipelines.",
+        "education": [
+          {
+            "id": "edu-1",
+            "degree": "B.S. in Computer Science",
+            "institution": "University of California, Berkeley",
+            "graduation_year": "2021",
+            "gpa": "3.85",
+            "location": "Berkeley, CA",
+            "coursework": [
+              "Distributed Systems",
+              "Database Management",
+              "Algorithms & Data Structures"
+            ]
+          }
+        ],
+        "experience": [
+          {
+            "id": "exp-1",
+            "company": "CloudScale Technologies",
+            "position": "Senior Software Engineer",
+            "location": "San Francisco, CA",
+            "start_date": "2022",
+            "end_date": "Present",
+            "is_current": true,
+            "bullet_points": [
+              "Architected distributed event-driven ingestion pipeline handling 120,000 events/second using Go, Kafka, and PostgreSQL.",
+              "Optimized database query indexes and caching layers in Redis, reducing p99 API query response times from 180ms to 42ms.",
+              "Collaborated with cross-functional engineering teams to implement automated end-to-end testing with 88% code coverage."
+            ],
+            "technologies": [
+              "Go",
+              "Kafka",
+              "PostgreSQL",
+              "Redis",
+              "Docker",
+              "Kubernetes"
+            ]
+          },
+          {
+            "id": "exp-2",
+            "company": "Nexus Systems",
+            "position": "Software Engineer",
+            "location": "San Jose, CA",
+            "start_date": "2021",
+            "end_date": "2022",
+            "is_current": false,
+            "bullet_points": [
+              "Developed microservices backend for financial analytics dashboard using Python, FastAPI, and SQLAlchemy.",
+              "Designed responsive React and TypeScript UI components with accessible design system guidelines.",
+              "Integrated automated GitHub Actions workflows for continuous integration and staging deployments."
+            ],
+            "technologies": [
+              "Python",
+              "FastAPI",
+              "React",
+              "TypeScript",
+              "PostgreSQL"
+            ]
+          }
+        ],
+        "projects": [
+          {
+            "id": "proj-1",
+            "name": "Distributed Key-Value Engine",
+            "description": "Fault-tolerant distributed key-value store implementing Raft consensus protocol.",
+            "technologies": [
+              "Go",
+              "Raft",
+              "gRPC",
+              "Docker"
+            ],
+            "link": "github.com/alexmercer/raft-kv",
+            "contribution": "Engineered leader election and log replication logic.",
+            "results": "Achieved linearizable read performance across 5 distributed nodes.",
+            "bullet_points": [
+              "Implemented Raft consensus algorithm with dynamic leader election and log compaction routines.",
+              "Benchmarked write throughput to 45,000 operations per second under simulated packet loss.",
+              "Configured containerized integration tests using Docker Compose and GitHub Actions."
+            ],
+            "evidence": "Raft KV repository with unit tests and benchmark suite"
+          },
+          {
+            "id": "proj-2",
+            "name": "Real-time Telemetry Monitor",
+            "description": "Kernel-level packet inspection monitor built with eBPF and visualized via React dashboard.",
+            "technologies": [
+              "C",
+              "eBPF",
+              "Python",
+              "React",
+              "WebSockets"
+            ],
+            "link": "github.com/alexmercer/ebpf-monitor",
+            "contribution": "Wrote kernel probes and WebSocket streaming server.",
+            "results": "Zero overhead live packet latency tracking.",
+            "bullet_points": [
+              "Developed eBPF bytecode programs capturing TCP socket metrics directly from Linux kernel space.",
+              "Built streaming WebSocket bridge in Python dispatching telemetry to an interactive React dashboard."
+            ],
+            "evidence": "eBPF C probe source files and frontend telemetry charts"
+          }
+        ],
+        "skills": {
+          "languages": [
+            "Python",
+            "Go",
+            "TypeScript",
+            "JavaScript",
+            "SQL",
+            "C++"
+          ],
+          "frameworks": [
+            "FastAPI",
+            "React",
+            "Node.js",
+            "Django",
+            "Next.js"
+          ],
+          "tools": [
+            "Docker",
+            "Kubernetes",
+            "Git",
+            "GitHub Actions",
+            "Linux",
+            "Terraform"
+          ],
+          "databases": [
+            "PostgreSQL",
+            "Redis",
+            "MongoDB"
+          ],
+          "other": [
+            "Distributed Systems",
+            "REST APIs",
+            "gRPC",
+            "Microservices Architecture"
+          ]
+        },
+        "certifications": [
+          "AWS Certified Solutions Architect - Associate",
+          "Certified Kubernetes Administrator (CKA)"
+        ],
+        "achievements": [
+          "Dean's Honors List (UC Berkeley 2019-2021)",
+          "1st Place Hackathon Winner - CalHacks"
+        ],
+        "publications": [
+          "Low Latency Consensus Patterns in Distributed Ledgers (Conference Paper, 2023)"
+        ],
+        "leadership": [
+          "Peer Mentor - CS Undergrad Mentorship Program"
+        ],
+        "sections_order": [
+          "education",
+          "summary",
+          "experience",
+          "projects",
+          "skills",
+          "certifications",
+          "achievements",
+          "publications",
+          "leadership"
+        ],
+        "created_at": "2026-09-23T15:27:07.622174",
+        "updated_at": "2026-09-23T16:17:22.365855"
+      }
+    },
+    {
+      "id": "ver-4591b362",
+      "resume_id": "master-1",
+      "version_name": "AI Optimized",
+      "created_at": "2026-09-23T16:19:57.387497",
+      "change_summary": "Command Bar: Move Education to top",
+      "data": {
+        "id": "master-1",
+        "title": "Software Engineer Resume",
+        "template_id": "modern",
+        "career_stage": "software_engineer",
+        "personal": {
+          "name": "Alex Mercer",
+          "email": "alex.mercer@example.com",
+          "phone": "+1 (555) 349-2810",
+          "location": "San Francisco, CA",
+          "linkedin": "linkedin.com/in/alex-mercer",
+          "github": "github.com/alexmercer",
+          "portfolio": "alexmercer.dev",
+          "title": "Full-Stack & Distributed Systems Engineer"
+        },
+        "target": {
+          "role": "",
+          "company": "",
+          "job_description": ""
+        },
+        "summary": "Software engineer with 4+ years of experience designing high-throughput backend services and reactive web applications. Proven track record of reducing latency by 35% and automating CI/CD pipelines.",
+        "education": [
+          {
+            "id": "edu-1",
+            "degree": "B.S. in Computer Science",
+            "institution": "University of California, Berkeley",
+            "graduation_year": "2021",
+            "gpa": "3.85",
+            "location": "Berkeley, CA",
+            "coursework": [
+              "Distributed Systems",
+              "Database Management",
+              "Algorithms & Data Structures"
+            ]
+          }
+        ],
+        "experience": [
+          {
+            "id": "exp-1",
+            "company": "CloudScale Technologies",
+            "position": "Senior Software Engineer",
+            "location": "San Francisco, CA",
+            "start_date": "2022",
+            "end_date": "Present",
+            "is_current": true,
+            "bullet_points": [
+              "Architected distributed event-driven ingestion pipeline handling 120,000 events/second using Go, Kafka, and PostgreSQL.",
+              "Optimized database query indexes and caching layers in Redis, reducing p99 API query response times from 180ms to 42ms.",
+              "Collaborated with cross-functional engineering teams to implement automated end-to-end testing with 88% code coverage."
+            ],
+            "technologies": [
+              "Go",
+              "Kafka",
+              "PostgreSQL",
+              "Redis",
+              "Docker",
+              "Kubernetes"
+            ]
+          },
+          {
+            "id": "exp-2",
+            "company": "Nexus Systems",
+            "position": "Software Engineer",
+            "location": "San Jose, CA",
+            "start_date": "2021",
+            "end_date": "2022",
+            "is_current": false,
+            "bullet_points": [
+              "Developed microservices backend for financial analytics dashboard using Python, FastAPI, and SQLAlchemy.",
+              "Designed responsive React and TypeScript UI components with accessible design system guidelines.",
+              "Integrated automated GitHub Actions workflows for continuous integration and staging deployments."
+            ],
+            "technologies": [
+              "Python",
+              "FastAPI",
+              "React",
+              "TypeScript",
+              "PostgreSQL"
+            ]
+          }
+        ],
+        "projects": [
+          {
+            "id": "proj-1",
+            "name": "Distributed Key-Value Engine",
+            "description": "Fault-tolerant distributed key-value store implementing Raft consensus protocol.",
+            "technologies": [
+              "Go",
+              "Raft",
+              "gRPC",
+              "Docker"
+            ],
+            "link": "github.com/alexmercer/raft-kv",
+            "contribution": "Engineered leader election and log replication logic.",
+            "results": "Achieved linearizable read performance across 5 distributed nodes.",
+            "bullet_points": [
+              "Implemented Raft consensus algorithm with dynamic leader election and log compaction routines.",
+              "Benchmarked write throughput to 45,000 operations per second under simulated packet loss.",
+              "Configured containerized integration tests using Docker Compose and GitHub Actions."
+            ],
+            "evidence": "Raft KV repository with unit tests and benchmark suite"
+          },
+          {
+            "id": "proj-2",
+            "name": "Real-time Telemetry Monitor",
+            "description": "Kernel-level packet inspection monitor built with eBPF and visualized via React dashboard.",
+            "technologies": [
+              "C",
+              "eBPF",
+              "Python",
+              "React",
+              "WebSockets"
+            ],
+            "link": "github.com/alexmercer/ebpf-monitor",
+            "contribution": "Wrote kernel probes and WebSocket streaming server.",
+            "results": "Zero overhead live packet latency tracking.",
+            "bullet_points": [
+              "Developed eBPF bytecode programs capturing TCP socket metrics directly from Linux kernel space.",
+              "Built streaming WebSocket bridge in Python dispatching telemetry to an interactive React dashboard."
+            ],
+            "evidence": "eBPF C probe source files and frontend telemetry charts"
+          }
+        ],
+        "skills": {
+          "languages": [
+            "Python",
+            "Go",
+            "TypeScript",
+            "JavaScript",
+            "SQL",
+            "C++"
+          ],
+          "frameworks": [
+            "FastAPI",
+            "React",
+            "Node.js",
+            "Django",
+            "Next.js"
+          ],
+          "tools": [
+            "Docker",
+            "Kubernetes",
+            "Git",
+            "GitHub Actions",
+            "Linux",
+            "Terraform"
+          ],
+          "databases": [
+            "PostgreSQL",
+            "Redis",
+            "MongoDB"
+          ],
+          "other": [
+            "Distributed Systems",
+            "REST APIs",
+            "gRPC",
+            "Microservices Architecture"
+          ]
+        },
+        "certifications": [
+          "AWS Certified Solutions Architect - Associate",
+          "Certified Kubernetes Administrator (CKA)"
+        ],
+        "achievements": [
+          "Dean's Honors List (UC Berkeley 2019-2021)",
+          "1st Place Hackathon Winner - CalHacks"
+        ],
+        "publications": [
+          "Low Latency Consensus Patterns in Distributed Ledgers (Conference Paper, 2023)"
+        ],
+        "leadership": [
+          "Peer Mentor - CS Undergrad Mentorship Program"
+        ],
+        "sections_order": [
+          "education",
+          "summary",
+          "experience",
+          "projects",
+          "skills",
+          "certifications",
+          "achievements",
+          "publications",
+          "leadership"
+        ],
+        "created_at": "2026-09-23T15:27:07.622174",
+        "updated_at": "2026-09-23T16:19:57.386061"
+      }
+    }
+  ]
+}
